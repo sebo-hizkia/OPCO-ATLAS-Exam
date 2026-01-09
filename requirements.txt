@@ -1,0 +1,6 @@
+ipykernel
+jupyterlab
+pandas
+missingno
+PyQt5
+scikit-learn
