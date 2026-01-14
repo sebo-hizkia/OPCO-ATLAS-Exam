@@ -5,6 +5,7 @@ import joblib
 from pathlib import Path
 from loguru import logger
 import sys
+from middleware.audit_middleware import audit_requests
 
 # -------------------------------------------------------------------
 # Configuration des chemins
@@ -62,6 +63,9 @@ app = FastAPI(
     description="API de prédiction avec ou sans note du second trimestre (G2)",
     version="1.0.0"
 )
+
+# Journalisation des requêtes HTTP
+app.middleware("http")(audit_requests)
 
 # -------------------------------------------------------------------
 # Schémas d'entrée

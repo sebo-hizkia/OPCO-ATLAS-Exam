@@ -75,9 +75,8 @@ Il complète le notebook en apportant une lecture réflexive et professionnelle 
 ## 🐳 Lancement avec Docker
 ### 1️⃣ Prérequis
 
-Docker
-
-Docker Compose
+- Docker
+- Docker Compose
 
 ### 2️⃣ Construction et démarrage
 
@@ -88,9 +87,8 @@ docker-compose up --build
 
 Les services sont automatiquement lancés :
 
-backend (API)
-
-frontend (interface utilisateur)
+- backend (API)
+- frontend (interface utilisateur)
 
 ### 🌐 Accès aux services
 
@@ -166,4 +164,17 @@ Payload attendu :
   "mode": "with_g2",
   "interpretation": "Réussite probable"
 }
+````
+### Journalisation des requêtes
+
+#### Visualisation des logs en temps réel
+````
+docker-compose logs -f backend
+````
+
+#### Accéder au fichier app.log dans le conteneur
+
+````
+docker exec -it backend /bin/bash
+cd /app/logs
 ````
