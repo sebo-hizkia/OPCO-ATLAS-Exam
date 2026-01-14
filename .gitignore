@@ -1,0 +1,35 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.egg-info/
+.venv
+venv/
+
+# Pytest
+.pytest_cache/
+
+# Streamlit
+.streamlit/
+
+# Logs
+*.log
+
+# Docker
+*.tar
+docker-compose.override.yml
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Jupiter Lab
+.ipynb_checkpoints
+
+# Other
+student+performance

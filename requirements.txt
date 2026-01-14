@@ -4,3 +4,4 @@ pandas
 missingno
 PyQt5
 scikit-learn
+joblib
