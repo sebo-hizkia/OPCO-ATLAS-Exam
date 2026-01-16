@@ -6,6 +6,11 @@ from pathlib import Path
 from loguru import logger
 import sys
 from middleware.audit_middleware import audit_requests
+from modules.retraining import retrain_model
+
+from fastapi import UploadFile, File, Form
+import tempfile
+import shutil
 
 # -------------------------------------------------------------------
 # Configuration des chemins
@@ -89,6 +94,10 @@ class StudentInputWithoutG2(BaseModel):
 class StudentInputWithG2(StudentInputWithoutG2):
     G2: int
 
+class RetrainRequest(BaseModel):
+    csv_path: str
+    include_g2: bool = True
+
 # -------------------------------------------------------------------
 # Routes
 # -------------------------------------------------------------------
@@ -143,3 +152,30 @@ def predict_without_g2(student: StudentInputWithoutG2):
         "mode": "without_g2",
         "interpretation": "Réussite probable" if prediction == 1 else "Risque d’échec"
     }
+
+@app.post("/retrain")
+def retrain(request: RetrainRequest):
+    logger.info(
+        f"Retraining request | file={request.filename} | include_g2={request.include_g2}"
+    )
+
+    csv_path = Path("/app/data") / request.filename
+
+    if request.include_g2:
+        model_output_path = MODELS_DIR / "model_with_g2.pkl"
+    else:
+        model_output_path = MODELS_DIR / "model_without_g2.pkl"
+
+    results = retrain_model(
+        csv_path=csv_path,
+        include_g2=request.include_g2,
+        model_output_path=model_output_path
+    )
+
+    return {
+        "status": "success",
+        "metrics": results,
+        "model_path": str(model_output_path)
+    }
+
+

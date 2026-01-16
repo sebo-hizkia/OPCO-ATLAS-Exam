@@ -25,8 +25,15 @@ Le projet s’appuie sur des jeux de données publics issus d’établissements 
 │   ├── models/
 │   │   ├── model_with_g2.pkl
 │   │   └── model_without_g2.pkl
-│   └── logs/
-│       └── app.log
+│   ├── logs/
+│   │   └── app.log
+│   │
+│   ├── modules/
+│   │   ├── __init__.py
+│   │   └── retraining.py        # Retrain
+│   │
+│   └── mlruns/                  # MLflow
+│
 │
 ├── frontend/
 │   ├── app.py                 # Interface Streamlit
@@ -177,4 +184,11 @@ docker-compose logs -f backend
 ````
 docker exec -it backend /bin/bash
 cd /app/logs
+````
+
+### Ré-entrainement
+
+Lancement des tests
+````
+pytest backend/tests -q
 ````
