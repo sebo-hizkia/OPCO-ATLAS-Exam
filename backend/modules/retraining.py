@@ -10,6 +10,7 @@ from sklearn.pipeline import Pipeline
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
+from modules.data_preparation import prepare_dataset
 
 # -------------------------------------------------------------------
 # Préprocessing
@@ -56,21 +57,16 @@ def retrain_model(
     # Chargement des données
     df = pd.read_csv(csv_path, sep=";")
 
-    if "target" not in df.columns:
-        raise ValueError("La colonne 'target' est absente du jeu de données.")
+    X, y = prepare_dataset(df, include_g2)
 
-    y = df["target"]
+    if len(X) < 5:
+        raise ValueError("Nombre d'observations insuffisant pour le ré-entrainement.")
 
     # Sélection des features selon le scénario
     if include_g2:
-        X = df.drop(columns=["G3", "target"], errors="ignore")
         run_name = "retrain_with_g2"
     else:
-        X = df.drop(columns=["G3", "G2", "target"], errors="ignore")
         run_name = "retrain_without_g2"
-
-    if len(X) < 2:
-        raise ValueError("Nombre d'observations insuffisant pour le ré-entrainement.")
 
     # Création du pipeline complet
     preprocessor = make_preprocessor(X)
@@ -82,7 +78,7 @@ def retrain_model(
         ]
     )
 
-    # Validation croisée robuste
+    # Validation croisée
     cv = min(5, len(X))
 
     with mlflow.start_run(run_name=run_name):

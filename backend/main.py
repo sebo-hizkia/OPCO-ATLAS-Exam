@@ -154,21 +154,30 @@ def predict_without_g2(student: StudentInputWithoutG2):
     }
 
 @app.post("/retrain")
-def retrain(request: RetrainRequest):
+def retrain(
+    file: UploadFile = File(...),
+    include_g2: bool = Form(...)
+):
+    """
+    Ré-entrainement du modèle à partir d'un CSV uploadé
+    """
     logger.info(
-        f"Retraining request | file={request.filename} | include_g2={request.include_g2}"
+        f"Retraining request | file={file.filename} | include_g2={include_g2}"
     )
 
-    csv_path = Path("/app/data") / request.filename
+    # Sauvegarde temporaire du fichier
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
+        shutil.copyfileobj(file.file, tmp)
+        csv_path = tmp.name
 
-    if request.include_g2:
+    if include_g2:
         model_output_path = MODELS_DIR / "model_with_g2.pkl"
     else:
         model_output_path = MODELS_DIR / "model_without_g2.pkl"
 
     results = retrain_model(
         csv_path=csv_path,
-        include_g2=request.include_g2,
+        include_g2=include_g2,
         model_output_path=model_output_path
     )
 
@@ -177,5 +186,6 @@ def retrain(request: RetrainRequest):
         "metrics": results,
         "model_path": str(model_output_path)
     }
+
 
 
