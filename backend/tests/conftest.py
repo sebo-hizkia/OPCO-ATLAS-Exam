@@ -1,32 +1,25 @@
 import pandas as pd
 import pytest
-from pathlib import Path
-import numpy as np
-
 
 @pytest.fixture
-def dummy_dataset(tmp_path: Path):
-    """
-    Génère un jeu de données fictif mais réaliste
-    avec 20 observations, suffisant pour une
-    validation croisée à 5 folds.
-    """
-
-    np.random.seed(42)
-
-    n_samples = 20
-
+def dummy_dataset(tmp_path):
     df = pd.DataFrame({
-        "studytime": np.random.randint(1, 5, size=n_samples),
-        "failures": np.random.randint(0, 3, size=n_samples),
-        "absences": np.random.randint(0, 10, size=n_samples),
-        "G1": np.random.randint(0, 20, size=n_samples),
-        "G2": np.random.randint(0, 20, size=n_samples),
-        "source": np.random.choice(["mat", "por"], size=n_samples),
-        "target": np.random.choice([0, 1], size=n_samples)
+        "source": ["mat", "por"] * 10,
+        "famsize": ["GT3", "LE3"] * 10,
+        "studytime": [2, 3] * 10,
+        "failures": [0, 1] * 10,
+        "activities": ["yes", "no"] * 10,
+        "higher": ["yes", "yes"] * 10,
+        "internet": ["yes", "no"] * 10,
+        "famrel": [4, 3] * 10,
+        "freetime": [3, 2] * 10,
+        "goout": [2, 4] * 10,
+        "absences": [1, 5] * 10,
+        "G1": [12, 8] * 10,
+        "G2": [11, 7] * 10,
+        "G3": [13, 6] * 10,
     })
 
-    csv_path = tmp_path / "dummy_students.csv"
-    df.to_csv(csv_path, sep=";", index=False)
-
-    return csv_path
+    path = tmp_path / "dummy_students.csv"
+    df.to_csv(path, sep=";", index=False)
+    return path
