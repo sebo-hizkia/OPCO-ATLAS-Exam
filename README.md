@@ -22,23 +22,31 @@ Le projet s’appuie sur des jeux de données publics issus d’établissements 
 │   ├── main.py                # API FastAPI
 │   ├── Dockerfile
 │   ├── requirements.txt
+│   ├── middleware/
+│   │   └── audit_middleware.py
+│   │
 │   ├── models/
 │   │   ├── model_with_g2.pkl
 │   │   └── model_without_g2.pkl
+│   │
 │   ├── logs/
 │   │   └── app.log
 │   │
 │   ├── modules/
 │   │   ├── __init__.py
-│   │   └── retraining.py        # Retrain
+│   │   ├── data_validation.py
+│   │   ├── preprocessing.py
+│   │   └── retraining.py      # Retrain
 │   │
-│   └── mlruns/                  # MLflow
+│   └── tests/                 # Tests
 │
 │
 ├── frontend/
 │   ├── app.py                 # Interface Streamlit
 │   ├── Dockerfile
 │   └── requirements.txt
+│
+├── mlruns/                    # MLflow
 │
 └── .github/
     └── workflows/
