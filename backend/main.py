@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import pandas as pd
 import joblib
@@ -11,6 +11,7 @@ from modules.retraining import retrain_model
 from fastapi import UploadFile, File, Form
 import tempfile
 import shutil
+import uuid
 
 # -------------------------------------------------------------------
 # Configuration des chemins
@@ -18,8 +19,11 @@ import shutil
 
 BASE_DIR = Path(__file__).resolve().parent
 MODELS_DIR = BASE_DIR / "models"
+DATA_DIR = BASE_DIR / "data"
 LOGS_DIR = BASE_DIR / "logs"
 
+MODELS_DIR.mkdir(exist_ok=True)
+DATA_DIR.mkdir(exist_ok=True)
 LOGS_DIR.mkdir(exist_ok=True)
 
 MODEL_WITH_G2_PATH = MODELS_DIR / "model_with_g2.pkl"
@@ -154,38 +158,76 @@ def predict_without_g2(student: StudentInputWithoutG2):
     }
 
 @app.post("/retrain")
-def retrain(
-    file: UploadFile = File(...),
-    include_g2: bool = Form(...)
-):
+def retrain(file: UploadFile = File(...)):
     """
-    Ré-entrainement du modèle à partir d'un CSV uploadé
+    Ré-entraîne automatiquement les modèles de prédiction à partir d'un CSV :
+    - modèle sans G2 (prédiction précoce)
+    - modèle avec G2 (si disponible dans le fichier)
     """
-    logger.info(
-        f"Retraining request | file={file.filename} | include_g2={include_g2}"
-    )
 
-    # Sauvegarde temporaire du fichier
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".csv") as tmp:
-        shutil.copyfileobj(file.file, tmp)
-        csv_path = tmp.name
+    # ------------------------------------------------------------------
+    # Sauvegarde temporaire du fichier CSV
+    # ------------------------------------------------------------------
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Le fichier doit être un CSV.")
 
-    if include_g2:
-        model_output_path = MODELS_DIR / "model_with_g2.pkl"
-    else:
-        model_output_path = MODELS_DIR / "model_without_g2.pkl"
+    tmp_filename = f"{uuid.uuid4()}_{file.filename}"
+    tmp_csv_path = DATA_DIR / tmp_filename
 
-    results = retrain_model(
-        csv_path=csv_path,
-        include_g2=include_g2,
-        model_output_path=model_output_path
-    )
+    try:
+        with open(tmp_csv_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
 
+        df = pd.read_csv(tmp_csv_path, sep=";")
+
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Erreur lecture CSV : {e}")
+
+    # ------------------------------------------------------------------
+    # Ré-entrainement des modèles
+    # ------------------------------------------------------------------
+    results = {}
+
+    try:
+        # --------- Modèle SANS G2 (toujours entraîné)
+        results["without_g2"] = retrain_model(
+            df=df,
+            include_g2=False,
+            model_output_path=MODELS_DIR / "model_without_g2.pkl",
+            run_name="retrain_without_g2"
+        )
+
+        # --------- Modèle AVEC G2 (si disponible)
+        if "G2" in df.columns:
+            results["with_g2"] = retrain_model(
+                df=df,
+                include_g2=True,
+                model_output_path=MODELS_DIR / "model_with_g2.pkl",
+                run_name="retrain_with_g2"
+            )
+        else:
+            results["with_g2"] = {
+                "status": "skipped",
+                "reason": "Colonne G2 absente du fichier CSV"
+            }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    finally:
+        # Nettoyage du fichier temporaire
+        if tmp_csv_path.exists():
+            tmp_csv_path.unlink()
+
+    # ------------------------------------------------------------------
+    # Réponse API
+    # ------------------------------------------------------------------
     return {
         "status": "success",
-        "metrics": results,
-        "model_path": str(model_output_path)
+        "models_trained": list(results.keys()),
+        "results": results
     }
+
 
 
 

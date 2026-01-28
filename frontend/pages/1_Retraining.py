@@ -4,24 +4,24 @@ import requests
 BACKEND_URL = "http://backend:8000"
 
 st.set_page_config(page_title="Ré-entrainement", layout="centered")
-st.title("🔄 Ré-entrainement du modèle")
+st.title("🔄 Ré-entrainement des modèles")
 
 st.markdown(
     """
-    Cette page permet de ré-entrainer le modèle à partir
-    d'un fichier CSV fourni par l'utilisateur.
+    Cette page permet de **ré-entraîner automatiquement les modèles**
+    à partir d’un fichier CSV fourni par l’utilisateur.
+
+    Le backend :
+    - entraîne **un modèle sans G2**
+    - entraîne **un modèle avec G2** si la colonne est présente
+    - journalise les métriques (**F1-score, Recall**) dans **MLflow**
     """
 )
 
 # Upload CSV
 uploaded_file = st.file_uploader(
-    "📂 Charger un fichier CSV",
+    "📂 Charger un fichier CSV (`;` comme séparateur)",
     type=["csv"]
-)
-
-include_g2 = st.checkbox(
-    "Inclure la note du second trimestre (G2)",
-    value=True
 )
 
 if uploaded_file and st.button("🚀 Lancer le ré-entrainement"):
@@ -30,28 +30,35 @@ if uploaded_file and st.button("🚀 Lancer le ré-entrainement"):
             "file": (uploaded_file.name, uploaded_file.getvalue(), "text/csv")
         }
 
-        data = {
-            "include_g2": str(include_g2).lower()
-        }
-
         try:
             response = requests.post(
                 f"{BACKEND_URL}/retrain",
                 files=files,
-                data=data,
                 timeout=300
             )
 
             if response.status_code == 200:
                 res = response.json()
 
-                st.success("Ré-entrainement terminé 🎉")
-                st.metric("F1-score moyen", f"{res['f1_mean']:.3f}")
-                st.metric("Écart-type", f"{res['f1_std']:.3f}")
-                st.write("Modèle sauvegardé :", res["model_path"])
+                st.success("✅ Ré-entrainement terminé")
+
+                # Résumé clair des résultats
+                results = res.get("results", {})
+
+                for model_name, metrics in results.items():
+                    st.subheader(f"📦 {model_name}")
+
+                    if metrics.get("status") == "skipped":
+                        st.warning(metrics.get("reason"))
+                        continue
+
+                    st.metric("F1-score moyen", f"{metrics['f1_mean']:.3f}")
+                    st.metric("Recall moyen", f"{metrics['recall_mean']:.3f}")
+                    st.caption(f"Modèle sauvegardé : `{metrics['model_path']}`")
 
             else:
-                st.error(response.text)
+                st.error(f"Erreur backend ({response.status_code})")
+                st.text(response.text)
 
         except Exception as e:
             st.error(f"Erreur backend : {e}")

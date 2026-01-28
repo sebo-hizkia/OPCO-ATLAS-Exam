@@ -89,13 +89,15 @@ Il complète le notebook en apportant une lecture réflexive et professionnelle 
 
 À la racine du projet :
 ````bash
-docker-compose up --build
+docker compose up --build
 ````
 
 Les services sont automatiquement lancés :
 
 - backend (API)
 - frontend (interface utilisateur)
+
+---
 
 ### 🌐 Accès aux services
 
@@ -106,26 +108,37 @@ Les services sont automatiquement lancés :
 | Documentation Swagger | [http://localhost:8000/docs](http://localhost:8000/docs)     |
 | Healthcheck           | [http://localhost:8000/health](http://localhost:8000/health) |
 
-🔌 API — Routes disponibles
-🔹 Healthcheck
-````
-GET /health
-````
+---
 
-Réponse :
-````
+## 🔌 API — Routes disponibles
+
+---
+
+### 🔹 Healthcheck
+
+```http
+GET /health
+```
+
+**Réponse :**
+
+```json
 {
   "status": "ok"
 }
-````
+```
 
-🔹 Prédiction sans G2 (précoce)
-````
+---
+
+### 🔹 Prédiction sans G2 (prédiction précoce)
+
+```http
 POST /predict-without-g2
-````
+```
 
-Payload attendu :
-````
+**Payload attendu :**
+
+```json
 {
   "source": "mat",
   "famsize": "GT3",
@@ -140,14 +153,19 @@ Payload attendu :
   "absences": 3,
   "G1": 12
 }
-````
-🔹 Prédiction avec G2 (complète)
-````
-POST /predict-with-g2
-````
+```
 
-Payload attendu :
-````
+---
+
+### 🔹 Prédiction avec G2 (prédiction complète)
+
+```http
+POST /predict-with-g2
+```
+
+**Payload attendu :**
+
+```json
 {
   "source": "mat",
   "famsize": "GT3",
@@ -163,20 +181,94 @@ Payload attendu :
   "G1": 12,
   "G2": 13
 }
-````
-🔹 Réponse type
-````
+```
+
+---
+
+### 🔹 Réponse type (prédiction)
+
+```json
 {
   "prediction": 1,
   "mode": "with_g2",
   "interpretation": "Réussite probable"
 }
-````
+```
+
+---
+
+## 🔁 Ré-entraînement des modèles (monitoré avec MLflow)
+
+L’API permet de **ré-entraîner automatiquement les modèles à partir d’un nouveau fichier CSV**.
+
+* Le modèle **sans G2** est toujours entraîné (prédiction précoce)
+* Le modèle **avec G2** est entraîné uniquement si la colonne `G2` est présente
+* Les métriques **F1-score** et **Recall** sont évaluées par validation croisée et loggées dans **MLflow**
+
+Lancement de MLFlow
+
+```
+mlflow ui
+```
+
+Puis http://127.0.0.1:5000
+
+---
+
+### 🔹 Ré-entrainement via API
+
+```http
+POST /retrain
+```
+
+**Form-data attendu :**
+
+* `file` : fichier CSV (`;` comme séparateur)
+
+---
+
+### 📌 Exemple avec `curl`
+
+```bash
+curl -X POST http://localhost:8000/retrain \
+  -F "file=@student-mat.csv"
+```
+
+---
+
+### 🔹 Réponse type
+
+```json
+{
+  "status": "success",
+  "models_trained": [
+    "without_g2",
+    "with_g2"
+  ],
+  "results": {
+    "without_g2": {
+      "f1_mean": 0.91,
+      "recall_mean": 0.94,
+      "cv_folds": 5,
+      "model_path": "model_without_g2.pkl"
+    },
+    "with_g2": {
+      "f1_mean": 0.94,
+      "recall_mean": 0.95,
+      "cv_folds": 5,
+      "model_path": "model_with_g2.pkl"
+    }
+  }
+}
+```
+
+---
+
 ### Journalisation des requêtes
 
 #### Visualisation des logs en temps réel
 ````
-docker-compose logs -f backend
+docker compose logs -f backend
 ````
 
 #### Accéder au fichier app.log dans le conteneur
