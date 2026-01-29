@@ -6,11 +6,15 @@ services:
       - "8000:8000"
     volumes:
       - ./mlruns:/app/mlruns
+      - ./logs:/app/logs
 
   frontend:
     build: ./frontend
     container_name: frontend
     ports:
       - "8501:8501"
+    volumes:
+      - ./logs:/app/logs
+
     depends_on:
       - backend

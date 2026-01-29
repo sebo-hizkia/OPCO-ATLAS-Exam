@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import pandas as pd
 import joblib
@@ -12,6 +12,7 @@ from fastapi import UploadFile, File, Form
 import tempfile
 import shutil
 import uuid
+from datetime import datetime
 
 # -------------------------------------------------------------------
 # Configuration des chemins
@@ -44,7 +45,7 @@ logger.add(
            "<cyan>{module}</cyan> | {message}"
 )
 
-# Fichier avec rotation
+# Fichier log général (log des requêtes HTTP)
 logger.add(
     LOGS_DIR / "app.log",
     level="INFO",
@@ -52,6 +53,16 @@ logger.add(
     retention="10 days",
     compression="zip",
     format="{time:YYYY-MM-DD HH:mm:ss} | {level} | {module} | {message}"
+)
+
+# Fichier dédié pour les logs de prédiction
+PREDICTION_LOG = Path("/app/logs/predictions.jsonl")
+
+logger.add(
+    PREDICTION_LOG,
+    level="INFO",
+    serialize=True,   # Pour générer sous format JSON
+    filter=lambda record: record["extra"].get("event") == "prediction"
 )
 
 # -------------------------------------------------------------------
@@ -103,6 +114,36 @@ class RetrainRequest(BaseModel):
     include_g2: bool = True
 
 # -------------------------------------------------------------------
+# Méthodes
+# -------------------------------------------------------------------
+
+def run_prediction(
+    *,
+    request: Request,
+    model,
+    student_dict: dict,
+    model_name: str
+):
+    df = pd.DataFrame([student_dict])
+    prediction = model.predict(df)[0]
+
+    logger.bind(
+        event="prediction",
+        timestamp=datetime.utcnow().isoformat(),
+        session_id=request.headers.get("X-Session-ID"),
+        endpoint=request.url.path,
+        model=model_name,
+        prediction=int(prediction)
+    ).info("prediction")
+
+    return {
+        "prediction": int(prediction),
+        "mode": model_name,
+        "interpretation": "Réussite probable" if prediction == 1 else "Risque d’échec"
+    }
+
+
+# -------------------------------------------------------------------
 # Routes
 # -------------------------------------------------------------------
 
@@ -119,43 +160,28 @@ def health():
 
 
 @app.post("/predict-with-g2")
-def predict_with_g2(student: StudentInputWithG2):
-    """
-    Prédiction avec la note du second trimestre (G2).
-    Prédiction plus fiable, information disponible plus tardivement.
-    """
-    logger.info(f"Prediction request (with G2): {student.dict()}")
-
-    df = pd.DataFrame([student.dict()])
-    prediction = model_with_g2.predict(df)[0]
-
-    logger.info(f"Prediction result (with G2): {prediction}")
-
-    return {
-        "prediction": int(prediction),
-        "mode": "with_g2",
-        "interpretation": "Réussite probable" if prediction == 1 else "Risque d’échec"
-    }
-
+def predict_with_g2(
+    student: StudentInputWithG2,
+    request: Request
+):
+    return run_prediction(
+        request=request,
+        model=model_with_g2,
+        student_dict=student.dict(),
+        model_name="with_g2"
+    )
 
 @app.post("/predict-without-g2")
-def predict_without_g2(student: StudentInputWithoutG2):
-    """
-    Prédiction sans la note du second trimestre (G2).
-    Prédiction plus précoce, niveau d'incertitude plus élevé.
-    """
-    logger.info(f"Prediction request (without G2): {student.dict()}")
-
-    df = pd.DataFrame([student.dict()])
-    prediction = model_without_g2.predict(df)[0]
-
-    logger.info(f"Prediction result (without G2): {prediction}")
-
-    return {
-        "prediction": int(prediction),
-        "mode": "without_g2",
-        "interpretation": "Réussite probable" if prediction == 1 else "Risque d’échec"
-    }
+def predict_without_g2(
+    student: StudentInputWithoutG2,
+    request: Request
+):
+    return run_prediction(
+        request=request,
+        model=model_without_g2,
+        student_dict=student.dict(),
+        model_name="without_g2"
+    )
 
 @app.post("/retrain")
 def retrain(file: UploadFile = File(...)):

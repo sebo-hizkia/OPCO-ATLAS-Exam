@@ -9,6 +9,7 @@ BACKEND_URL = "http://backend:8000"
 
 st.set_page_config(
     page_title="Prédiction de la réussite scolaire",
+    page_icon="🎓",
     layout="centered"
 )
 
@@ -53,7 +54,7 @@ st.divider()
 st.subheader("📋 Informations de l’élève")
 
 source = st.selectbox(
-    "Matière",
+    "Cursus",
     ("mat", "por")
 )
 
